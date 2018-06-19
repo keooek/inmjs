@@ -3,7 +3,7 @@
 const puppeteer = require('puppeteer');
 const {URL} = require('url');
 const url = require('url');
-const fse = require('fs-extra'); // v 5.0.0
+const fse = require('fs-extra');
 const path = require('path');
 const mongoose = require('mongoose');
 const User = require('./models/property');
@@ -74,7 +74,7 @@ async function start(urlpar) {
   // Prepare for the tests (not yet implemented).
   await preparePageForTests(page);
 
-  // event interface - callback
+ // event interface - callback
  // page.on('response', async (response) => {
  //   const urll = new URL(response.url());
  //   let filePath = path.resolve(`./output/${urll.hostname}${urll.pathname}`);
