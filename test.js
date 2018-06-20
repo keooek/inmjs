@@ -8,6 +8,9 @@ const path = require('path');
 const mongoose = require('mongoose');
 const User = require('./models/property');
 
+//console.log(process.arch)
+//process.exit(0)
+
 // This is where we'll put the code to get around the tests.
 const preparePageForTests = async (page) => {
   // Pass the User-Agent Test.
@@ -64,11 +67,21 @@ const preparePageForTests = async (page) => {
 async function start(urlpar) {
 //(async () => {
   // Launch the browser in headless mode and set up a page.
+  let browser;
 
-  const browser = await puppeteer.launch({
+  if (process.arch === 'arm')   {
+   browser = await puppeteer.launch({
+    args: ['--no-sandbox'],
+    headless: true,
+    executablePath: '/usr/bin/chromium-browser',
+  });
+  }  else  {
+   browser = await puppeteer.launch({
     args: ['--no-sandbox'],
     headless: false,
   });
+  }
+  
   const page = await browser.newPage();
 
   // Prepare for the tests (not yet implemented).
@@ -143,7 +156,8 @@ function upsertProperty(propertyObj) {
 	const DB_URL = 'mongodb://localhost/propertyManagement';
 	
 	if (mongoose.connection.readyState == 0) {
-		mongoose.connect(DB_URL);
+		//mongoose.connect(DB_URL);
+	  process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, })  :  mongoose.connect(DB_URL)
 	}
 	
 	// if this email exists, update the entry, don't insert
@@ -168,6 +182,8 @@ function removeMatching(originalArray, regex) {
 
 const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
 start(url.parse(testUrl,true));
+
+//process.exit(0)
 
 //https://github.com/emadehsan/thal
 //scrap login extract info in subpages + mongoose
