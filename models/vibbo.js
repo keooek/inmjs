@@ -11,6 +11,6 @@ let propertySchema = new mongoose.Schema({
     dateCrawled: Date
 });
 
-let Property = mongoose.model('Property', propertySchema);
+let Vibbo = mongoose.model('Vibbo', propertySchema, 'Vibbo');
 
-module.exports = Property;
+module.exports = Vibbo;

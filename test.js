@@ -6,7 +6,7 @@ const url = require('url');
 const fse = require('fs-extra');
 const path = require('path');
 const mongoose = require('mongoose');
-const User = require('./models/property');
+const Vibbo = require('./models/vibbo');
 
 //console.log(process.arch)
 //process.exit(0)
@@ -164,7 +164,7 @@ function upsertProperty(propertyObj) {
 	const conditions = { reference: propertyObj.reference };
 	const options = { upsert: true, new: true, setDefaultsOnInsert: true };
 	
-	User.findOneAndUpdate(conditions, propertyObj, options, (err, result) => {
+	Vibbo.findOneAndUpdate(conditions, propertyObj, options, (err, result) => {
 		if (err) throw err;
 	});
 }
