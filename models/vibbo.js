@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 let propertySchema = new mongoose.Schema({
     reference: String,
-    source: String,
+    contact: String,
+    source: String, 
     zone: String,
     description: String,
     url: String,

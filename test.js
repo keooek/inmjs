@@ -7,6 +7,8 @@ const fse = require('fs-extra');
 const path = require('path');
 const mongoose = require('mongoose');
 const Vibbo = require('./models/vibbo');
+const CREDS = require('./creds');
+const nodemailer = require('nodemailer');
 
 //console.log(process.arch)
 //process.exit(0)
@@ -64,7 +66,7 @@ const preparePageForTests = async (page) => {
 }
 
 
-async function start(urlpar) {
+async function start_index(urlpar) {
 //(async () => {
   // Launch the browser in headless mode and set up a page.
   let browser;
@@ -117,7 +119,7 @@ async function start(urlpar) {
 //  })
 //  console.log(ids);
 
-  //Extraccion del identificador
+  //Espera la carga
   await page.waitForSelector('div.list_ads_table > div');
 
   const ids = await page.evaluate(() => {
@@ -148,7 +150,7 @@ async function start(urlpar) {
                     return document.querySelector(sel).getAttribute('href');
             }, hrefSelector);
 
-           console.log(ref + ' tiene href ' + href);
+           console.log(ref + ' tiene href https:' + href);
 
 
     const foundUser = Vibbo.findOne({reference: ref}, (err, userObj)=>{
@@ -158,32 +160,18 @@ async function start(urlpar) {
             console.log('Referencia en bd ' + userObj.reference + ' con fecha ' + userObj.dateCrawled)
         } else {
             console.log('Referencia no encontrada en bd ' + ref);
-/*            const HREF_SELECTOR = '#${ref} > div.user-list > div:nth-child(INDEX) > div.d-flex > div > a';
-
-            let href = await page.evaluate((sel) => {
-		    return document.querySelector(sel).getAttribute('href').replace('/', '');
-            }, HREF_SELECTOR);
-
-           console.log(ref + ' tiene href ' + href);
-  */          
+            start_property(ref,'https:' + href);
+            //upsertProperty({
+            //  reference: ref,
+            //  url: 'http:' + href,
+            //  dateCrawled: new Date()
+            // });
+            var waitTill = new Date(new Date().getTime() + 5 * 1000);
+            while(waitTill > new Date()){}
         }
     });
 
-//  }) 
-    }
-
-/*
-  ids.forEach(ref => {
-     //  const container = document.querySelector("#${ref}")
-     //  return container.querySelectorAll("div > div.front > div.add-info > p.subject.subjectTop > a.href")
-     //console.log(hrefs)
-     upsertProperty({
-      reference: ref,
-      dateCrawled: new Date()
-     });
-    console.log('Saved: ' + ref)
-   })
-*/
+  }
 
   //setTimeout(async () => {
   //  await browser.close();
@@ -196,6 +184,65 @@ async function start(urlpar) {
   await browser.close()
 //})();
 
+}
+
+//publico
+//start_property(115290798,'https://www.vibbo.com/vizcaya/piso-en-calle-travesia-arbolantxa-7/a115290798/?ca=48_s&st=s&c=58');
+//inmobiliaria
+//start_property(115290798,'https://www.vibbo.com/vizcaya/piso-en-plaza-luis-echevarria/a115456598/?ca=48_s&st=s&c=58');
+
+
+async function start_property(ref, href) {
+  let browser;
+
+  if (process.arch === 'arm')   {
+   browser = await puppeteer.launch({
+    args: ['--no-sandbox'],
+    headless: true,
+    executablePath: '/usr/bin/chromium-browser',
+  });
+  }  else  {
+   browser = await puppeteer.launch({
+    args: ['--no-sandbox'],
+    headless: false,
+  });
+  }
+  
+  const page = await browser.newPage();
+
+  // Prepare for the tests (not yet implemented).
+  await preparePageForTests(page);
+
+  await page.goto(href);
+
+  //Espera la carga
+  await page.waitForSelector('#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.titlePriceBox > h1');
+
+  const sellerSelector = '#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.sellerBox > div.sellerBox__user > div.sellerBox__info > div.sellerBox__info__name';
+  const title = await page.title()
+  console.log(title)
+
+  let seller = await page.evaluate((sel) => {
+    let element = document.querySelector(sel);
+    return element ? element.innerHTML : null;
+  }, sellerSelector);
+  
+  console.log(seller);
+
+  if (seller) {
+      upsertProperty({
+      reference: ref,
+      url: href,
+      source: 'Vibbo',
+      contact: seller,
+      dateCrawled: new Date()
+      });
+
+      console.log('Saved: ' + ref + ' Raquel')
+      notify_mail(ref);
+  }
+  
+  await browser.close()
 }
 
 function upsertProperty(propertyObj) {
@@ -228,7 +275,47 @@ function removeMatching(originalArray, regex) {
 }
 
 const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
-start(url.parse(testUrl,true));
+start_index(url.parse(testUrl,true));
+
+function notify_mail(ref) {
+
+  const DB_URL = 'mongodb://localhost/propertyManagement';
+	
+	if (mongoose.connection.readyState == 0) {
+		//mongoose.connect(DB_URL);
+	  process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, })  :  mongoose.connect(DB_URL)
+	}
+	
+  // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
+  Vibbo.findOne({ 'reference': ref }, 'contact source url dateClawled', function (err, property) {
+  if (err) return handleError(err);
+  // Prints "Space Ghost is a talk show host".
+  console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
+  });
+
+  var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+           user: 'CREDS.username',
+           pass: 'CREDS.password'
+       }
+   });
+
+   const mailOptions = {
+    from: 'CREDS.username', // sender address
+    to: 'CREDS.usertest', // list of receivers
+    subject: '$+{property.source}', // Subject line
+    html: '<p>${property.url}</p>'// plain text body
+  };
+
+  transporter.sendMail(mailOptions, function (err, info) {
+    if(err)
+      console.log(err)
+    else
+      console.log(info);
+  });
+
+}
 
 //process.exit(0)
 
