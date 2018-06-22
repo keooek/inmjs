@@ -117,16 +117,62 @@ async function start(urlpar) {
 //  })
 //  console.log(ids);
 
-
+  //Extraccion del identificador
   await page.waitForSelector('div.list_ads_table > div');
 
   const ids = await page.evaluate(() => {
     const links = Array.from(document.querySelectorAll('div.list_ads_table > div'))
     return links.map(link => link.id).slice(0, 100)
   })
+  // A veces aparecen id no numericos que no son necesarios
   removeMatching(ids,/^[^0-9]/);
   console.log(ids);
 
+  //ids.forEach(ref => {
+    //for (var ref of ids ) {
+   for (var i = 0; i < ids.length; i++) {
+        const ref = ids[i];
+        const DB_URL = 'mongodb://localhost/propertyManagement';
+
+        if (mongoose.connection.readyState == 0) {
+          process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, })  :  mongoose.connect(DB_URL)
+        }
+
+            const HREF_SELECTOR = '#\\3REFER > div > div.front > div.add-info > p.subject.subjectTop > a ';
+            const refspace = ref.slice(0,1) + ' ' + ref.slice(1,ref.length)
+            let hrefSelector = HREF_SELECTOR.replace("REFER", refspace);
+            console.log('Selector: ' + hrefSelector);
+            //Aunque el id sea 115436123, el selector lo pone como \31 15436123, la \\ es por caracter de escape
+            //let hrefSelector = '#\\31 15436123 > div > div.front > div.add-info > p.subject.subjectTop > a'
+            let href = await page.evaluate((sel) => {
+                    return document.querySelector(sel).getAttribute('href');
+            }, hrefSelector);
+
+           console.log(ref + ' tiene href ' + href);
+
+
+    const foundUser = Vibbo.findOne({reference: ref}, (err, userObj)=>{
+        if(err){
+            console.log('Error: ' + err)
+        } else if (userObj){
+            console.log('Referencia en bd ' + userObj.reference + ' con fecha ' + userObj.dateCrawled)
+        } else {
+            console.log('Referencia no encontrada en bd ' + ref);
+/*            const HREF_SELECTOR = '#${ref} > div.user-list > div:nth-child(INDEX) > div.d-flex > div > a';
+
+            let href = await page.evaluate((sel) => {
+		    return document.querySelector(sel).getAttribute('href').replace('/', '');
+            }, HREF_SELECTOR);
+
+           console.log(ref + ' tiene href ' + href);
+  */          
+        }
+    });
+
+//  }) 
+    }
+
+/*
   ids.forEach(ref => {
      //  const container = document.querySelector("#${ref}")
      //  return container.querySelectorAll("div > div.front > div.add-info > p.subject.subjectTop > a.href")
@@ -137,6 +183,7 @@ async function start(urlpar) {
      });
     console.log('Saved: ' + ref)
    })
+*/
 
   //setTimeout(async () => {
   //  await browser.close();
