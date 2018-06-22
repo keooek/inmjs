@@ -129,6 +129,7 @@ async function start_index(urlpar) {
   // A veces aparecen id no numericos que no son necesarios
   removeMatching(ids,/^[^0-9]/);
   console.log(ids);
+  ids='115290798  '
 
   //ids.forEach(ref => {
     //for (var ref of ids ) {
@@ -296,15 +297,15 @@ function notify_mail(ref) {
   var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-           user: 'CREDS.username',
-           pass: 'CREDS.password'
+           user: '${CREDS.username}',
+           pass: '${CREDS.password}'
        }
    });
 
    const mailOptions = {
-    from: 'CREDS.username', // sender address
-    to: 'CREDS.usertest', // list of receivers
-    subject: '$+{property.source}', // Subject line
+    from: '${CREDS.username}', // sender address
+    to: '${CREDS.usertest}', // list of receivers
+    subject: '${property.source}', // Subject line
     html: '<p>${property.url}</p>'// plain text body
   };
 
