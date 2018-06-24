@@ -1,7 +1,7 @@
 //https://github.com/intoli/intoli-article-materials/tree/master/articles/not-possible-to-block-chrome-headless
 // We'll use Puppeteer is our browser automation framework.
 const puppeteer = require('puppeteer');
-const {URL} = require('url');
+const { URL } = require('url');
 const url = require('url');
 const fse = require('fs-extra');
 const path = require('path');
@@ -14,25 +14,28 @@ var cron = require('cron');
 
 //console.log(process.arch)
 //process.exit(0)
-
+/*
 var job = new cron.CronJob({
  // cronTime: '00 51 19 * * 1-7', 
  cronTime: '* * * * *', 
   onTick: function() {
-  
+    console.log('h')
     const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
     start_index(url.parse(testUrl,true));
 
   },
   onComplete: function () {
-    /* This function is executed when the job stops */
+    // This function is executed when the job stops 
   },
-  start: true, /* Start the job right now */
-  timeZone: 'Europe/Madrid' /* Time zone of this job. */
+  start: true, // Start the job right now 
+  timeZone: 'Europe/Madrid' // Time zone of this job. 
 });
 
 job.start();
+*/
 
+const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
+start_index(url.parse(testUrl, true));
 
 // This is where we'll put the code to get around the tests.
 const preparePageForTests = async (page) => {
@@ -90,57 +93,44 @@ const preparePageForTests = async (page) => {
 
 
 async function start_index(urlpar) {
-//(async () => {
+  //(async () => {
   // Launch the browser in headless mode and set up a page.
   let browser;
 
-  if (process.arch === 'arm')   {
-   browser = await puppeteer.launch({
-    args: ['--no-sandbox'],
-    headless: true,
-    executablePath: '/usr/bin/chromium-browser',
-  });
-  }  else  {
-   browser = await puppeteer.launch({
-    args: ['--no-sandbox'],
-    headless: false,
-  });
+  if (process.arch === 'arm') {
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox'],
+      headless: true,
+      executablePath: '/usr/bin/chromium-browser',
+    });
+  } else {
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox'],
+      headless: false,
+    });
   }
-  
+
   const page = await browser.newPage();
 
   // Prepare for the tests (not yet implemented).
   await preparePageForTests(page);
 
- // event interface - callback
- // page.on('response', async (response) => {
- //   const urll = new URL(response.url());
- //   let filePath = path.resolve(`./output/${urll.hostname}${urll.pathname}`);
- //   if (path.extname(urll.pathname).trim() === '') {
- //     filePath = `${filePath}/index.html`;
- //   }
- //   await fse.outputFile(filePath, await response.buffer());
- // });
+  // event interface - callback
+  // page.on('response', async (response) => {
+  //   const urll = new URL(response.url());
+  //   let filePath = path.resolve(`./output/${urll.hostname}${urll.pathname}`);
+  //   if (path.extname(urll.pathname).trim() === '') {
+  //     filePath = `${filePath}/index.html`;
+  //   }
+  //   await fse.outputFile(filePath, await response.buffer());
+  // });
 
-  // Navigate to the page that will perform the tests.
-  //const testUrl = 'https://intoli.com/blog/' + 'not-possible-to-block-chrome-headless/chrome-headless-test.html';
-  //const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
   console.log(urlpar.href);
   await page.goto(urlpar.href);
   //https://fettblog.eu/scraping-with-puppeteer/
   //await page.goto(testUrl, {
   //  waitUntil: 'networkidle2'
   //});
-  
-  //console.log('Begin');
-  
-  //await page.waitForSelector('p.subject.subjectTop > a');
-
-  //const ids = await page.evaluate(() => {
-  //  const links = Array.from(document.querySelectorAll('p.subject.subjectTop > a'))
-  //  return links.map(link => link.href).slice(0, 100)
-  //})
- // console.log(ids);
 
   //Espera la carga
   await page.waitForSelector('div.list_ads_table > div');
@@ -150,53 +140,53 @@ async function start_index(urlpar) {
     return links.map(link => link.id).slice(0, 100)
   })
   // A veces aparecen id no numericos que no son necesarios
-  removeMatching(ids,/^[^0-9]/);
+  removeMatching(ids, /^[^0-9]/);
   //const ids = ["115467143"];
   console.log(ids);
 
 
   //ids.forEach(ref => {
-    //for (var ref of ids ) {
-   for (var i = 0; i < ids.length; i++) {
-        const ref = ids[i];
-        const DB_URL = 'mongodb://localhost/propertyManagement';
+  //for (var ref of ids ) {
+  for (var i = 0; i < ids.length; i++) {
+    const ref = ids[i];
+    const DB_URL = 'mongodb://localhost/propertyManagement';
 
-        if (mongoose.connection.readyState == 0) {
-          process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, })  :  mongoose.connect(DB_URL)
-        }
+    if (mongoose.connection.readyState == 0) {
+      process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, }) : mongoose.connect(DB_URL)
+    }
 
-            const HREF_SELECTOR = '#\\3REFER > div > div.front > div.add-info > p.subject.subjectTop > a ';
-            const refspace = ref.slice(0,1) + ' ' + ref.slice(1,ref.length)
-            let hrefSelector = HREF_SELECTOR.replace("REFER", refspace);
-            console.log('Selector: ' + hrefSelector);
-            //Aunque el id sea 115436123, el selector lo pone como \31 15436123, la \\ es por caracter de escape
-            //let hrefSelector = '#\\31 15436123 > div > div.front > div.add-info > p.subject.subjectTop > a'
-            let href = await page.evaluate((sel) => {
-                    return document.querySelector(sel).getAttribute('href');
-            }, hrefSelector);
+    const HREF_SELECTOR = '#\\3REFER > div > div.front > div.add-info > p.subject.subjectTop > a ';
+    const refspace = ref.slice(0, 1) + ' ' + ref.slice(1, ref.length)
+    let hrefSelector = HREF_SELECTOR.replace("REFER", refspace);
+    console.log('Selector: ' + hrefSelector);
+    //Aunque el id sea 115436123, el selector lo pone como \31 15436123, la \\ es por caracter de escape
+    //let hrefSelector = '#\\31 15436123 > div > div.front > div.add-info > p.subject.subjectTop > a'
+    let href = await page.evaluate((sel) => {
+      return document.querySelector(sel).getAttribute('href');
+    }, hrefSelector);
 
-           console.log(ref + ' tiene href https:' + href);
+    console.log(ref + ' tiene href https:' + href);
 
 
-    const foundUser = Vibbo.findOne({reference: ref}, (err, userObj)=>{
-        if(err){
-            console.log('Error: ' + err)
-        } else if (userObj){
-            console.log('Referencia en bd ' + userObj.reference + ' con fecha ' + userObj.dateCrawled)
-        } else {
-            console.log('Referencia no encontrada en bd ' + ref);
+    const foundUser = Vibbo.findOne({ reference: ref }, (err, userObj) => {
+      if (err) {
+        console.log('Error: ' + err)
+      } else if (userObj) {
+        console.log('Referencia en bd ' + userObj.reference + ' con fecha ' + userObj.dateCrawled)
+      } else {
+        console.log('Referencia no encontrada en bd ' + ref);
 
-            var waitTill = new Date(new Date().getTime() + 5 * 1000);
-            while(waitTill > new Date()){};
+        var waitTill = new Date(new Date().getTime() + 5 * 1000);
+        while (waitTill > new Date()) { };
 
-            start_property(page,browser, ref,'https:' + href);
-            //upsertProperty({
-            //  reference: ref,
-            //  url: 'http:' + href,
-            //  dateCrawled: new Date()
-            // });
+        start_property(page, browser, ref, 'https:' + href);
+        //upsertProperty({
+        //  reference: ref,
+        //  url: 'http:' + href,
+        //  dateCrawled: new Date()
+        // });
 
-        }
+      }
     });
 
   }
@@ -208,9 +198,6 @@ async function start_index(urlpar) {
   // Save a screenshot of the results.
   //await page.screenshot({path: 'headless-final-results.png'});
 
-
-//})();
-
 }
 
 //publico
@@ -220,7 +207,7 @@ async function start_index(urlpar) {
 
 
 async function start_property(page, browser, ref, href) {
-  
+
   await page.goto(href);
 
   //Espera la carga
@@ -234,54 +221,54 @@ async function start_property(page, browser, ref, href) {
     let element = document.querySelector(sel);
     return element ? element.innerHTML : null;
   }, sellerSelector);
-  
+
   console.log(seller);
 
   if (seller) {
-      upsertProperty({
+    upsertProperty({
       reference: ref,
       url: href,
       source: 'Vibbo',
       contact: seller,
       dateCrawled: new Date()
-      });
+    });
 
-      console.log('Saved: ' + ref + ' Raquel')
-      notify_mail(ref);
+    console.log('Saved: ' + ref + ' Raquel')
+    notify_mail(ref);
   }
 
-    // Clean up.
-    await browser.close()
-  
+  // Clean up.
+  await browser.close()
+
 }
 
 function upsertProperty(propertyObj) {
 
-	const DB_URL = 'mongodb://localhost/propertyManagement';
-	
-	if (mongoose.connection.readyState == 0) {
-		//mongoose.connect(DB_URL);
-	  process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, })  :  mongoose.connect(DB_URL)
-	}
-	
-	// if this email exists, update the entry, don't insert
-	const conditions = { reference: propertyObj.reference };
-	const options = { upsert: true, new: true, setDefaultsOnInsert: true };
-	
-	Vibbo.findOneAndUpdate(conditions, propertyObj, options, (err, result) => {
-		if (err) throw err;
-	});
+  const DB_URL = 'mongodb://localhost/propertyManagement';
+
+  if (mongoose.connection.readyState == 0) {
+    //mongoose.connect(DB_URL);
+    process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, }) : mongoose.connect(DB_URL)
+  }
+
+  // if this email exists, update the entry, don't insert
+  const conditions = { reference: propertyObj.reference };
+  const options = { upsert: true, new: true, setDefaultsOnInsert: true };
+
+  Vibbo.findOneAndUpdate(conditions, propertyObj, options, (err, result) => {
+    if (err) throw err;
+  });
 }
 
 function removeMatching(originalArray, regex) {
-    var j = 0;
-    while (j < originalArray.length) {
-        if (regex.test(originalArray[j]))
-            originalArray.splice(j, 1);
-        else
-            j++;
-    }
-    return originalArray;
+  var j = 0;
+  while (j < originalArray.length) {
+    if (regex.test(originalArray[j]))
+      originalArray.splice(j, 1);
+    else
+      j++;
+  }
+  return originalArray;
 }
 
 
@@ -289,48 +276,48 @@ function removeMatching(originalArray, regex) {
 function notify_mail(ref) {
 
   const DB_URL = 'mongodb://localhost/propertyManagement';
-	
-	if (mongoose.connection.readyState == 0) {
-		//mongoose.connect(DB_URL);
-	  process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, })  :  mongoose.connect(DB_URL)
-	}
-	
+
+  if (mongoose.connection.readyState == 0) {
+    //mongoose.connect(DB_URL);
+    process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, }) : mongoose.connect(DB_URL)
+  }
+
   // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
- // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
+  // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
   Vibbo.findOne({ reference: ref }, function (err, property) {
-  if (err) throw err;
-  console.log(property);
-  console.log(property.url);
-  // Prints "Space Ghost is a talk show host".
-  //console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
-  
-  //console.log(ref, property.url, property.dateCrawled, property.source, property.contact);
-  console.log(CREDS.username);
-  
+    if (err) throw err;
+    console.log(property);
+    console.log(property.url);
+    // Prints "Space Ghost is a talk show host".
+    //console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
 
-  var transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-           user: CREDS.username,
-           pass: CREDS.password
-       }
-   });
+    //console.log(ref, property.url, property.dateCrawled, property.source, property.contact);
+    console.log(CREDS.username);
 
-   const mailOptions = {
-    from: CREDS.username, // sender address
-    to: CREDS.usertest, // list of receivers
-    subject: property.source, // Subject line
-    html: '<p>Url: ' + property.url +  '</p>'// plain text body
-  };
 
-  transporter.sendMail(mailOptions, function (err, info) {
-    if(err)
-      console.log(err)
-    else
-      console.log(info);
+    var transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: CREDS.username,
+        pass: CREDS.password
+      }
+    });
+
+    const mailOptions = {
+      from: CREDS.username, // sender address
+      to: CREDS.usertest, // list of receivers
+      subject: property.source, // Subject line
+      html: '<p>Url: ' + property.url + '</p>'// plain text body
+    };
+
+    transporter.sendMail(mailOptions, function (err, info) {
+      if (err)
+        console.log(err)
+      else
+        console.log(info);
+    });
+
   });
-
-});
 
 }
 
