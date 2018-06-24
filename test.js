@@ -66,6 +66,8 @@ const preparePageForTests = async (page) => {
 }
 
 
+
+
 async function start_index(urlpar) {
 //(async () => {
   // Launch the browser in headless mode and set up a page.
@@ -122,14 +124,17 @@ async function start_index(urlpar) {
   //Espera la carga
   await page.waitForSelector('div.list_ads_table > div');
 
-  const ids = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('div.list_ads_table > div'))
-    return links.map(link => link.id).slice(0, 100)
-  })
+  //const ids = await page.evaluate(() => {
+  //  const links = Array.from(document.querySelectorAll('div.list_ads_table > div'))
+  //  return links.map(link => link.id).slice(0, 100)
+  //})
   // A veces aparecen id no numericos que no son necesarios
-  removeMatching(ids,/^[^0-9]/);
+  //removeMatching(ids,/^[^0-9]/);
+  //const ids = ["115290798", "115456598"];
+  //const ids = ["115290798"];
+  const ids = ["115467143"];
   console.log(ids);
-  //const ids='115290798  '
+
 
   //ids.forEach(ref => {
     //for (var ref of ids ) {
@@ -161,14 +166,17 @@ async function start_index(urlpar) {
             console.log('Referencia en bd ' + userObj.reference + ' con fecha ' + userObj.dateCrawled)
         } else {
             console.log('Referencia no encontrada en bd ' + ref);
-            start_property(ref,'https:' + href);
+
+            var waitTill = new Date(new Date().getTime() + 5 * 1000);
+            while(waitTill > new Date()){};
+
+            start_property(page,browser, ref,'https:' + href);
             //upsertProperty({
             //  reference: ref,
             //  url: 'http:' + href,
             //  dateCrawled: new Date()
             // });
-            var waitTill = new Date(new Date().getTime() + 5 * 1000);
-            while(waitTill > new Date()){}
+
         }
     });
 
@@ -181,8 +189,7 @@ async function start_index(urlpar) {
   // Save a screenshot of the results.
   //await page.screenshot({path: 'headless-final-results.png'});
 
-  // Clean up.
-  await browser.close()
+
 //})();
 
 }
@@ -193,28 +200,8 @@ async function start_index(urlpar) {
 //start_property(115290798,'https://www.vibbo.com/vizcaya/piso-en-plaza-luis-echevarria/a115456598/?ca=48_s&st=s&c=58');
 
 
-async function start_property(ref, href) {
+async function start_property(page, browser, ref, href) {
   
-  let browser;
-
-  if (process.arch === 'arm')   {
-   browser = await puppeteer.launch({
-    args: ['--no-sandbox'],
-    headless: true,
-    executablePath: '/usr/bin/chromium-browser',
-  });
-  }  else  {
-   browser = await puppeteer.launch({
-    args: ['--no-sandbox'],
-    headless: false,
-  });
-  }
-  
-  const page = await browser.newPage();
-
-  // Prepare for the tests (not yet implemented).
-  await preparePageForTests(page);
-
   await page.goto(href);
 
   //Espera la carga
@@ -243,8 +230,10 @@ async function start_property(ref, href) {
       console.log('Saved: ' + ref + ' Raquel')
       notify_mail(ref);
   }
+
+    // Clean up.
+    await browser.close()
   
-  await browser.close()
 }
 
 function upsertProperty(propertyObj) {
@@ -276,6 +265,10 @@ function removeMatching(originalArray, regex) {
     return originalArray;
 }
 
+
+
+//process.exit(0);
+
 const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
 start_index(url.parse(testUrl,true));
 
@@ -292,22 +285,26 @@ function notify_mail(ref) {
   Vibbo.findOne({ 'reference': ref }, 'contact source url dateClawled', function (err, property) {
   if (err) return handleError(err);
   // Prints "Space Ghost is a talk show host".
-  console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
+  //console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
   });
+  //console.log(ref, property.url, property.dateCrawled, property.source, property.contact);
+  console.log(CREDS.username);
+  console.log(property.url);
 
   var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-           user: '${CREDS.username}',
-           pass: '${CREDS.password}'
+           user: CREDS.username,
+           pass: CREDS.password
        }
    });
 
    const mailOptions = {
-    from: '${CREDS.username}', // sender address
-    to: '${CREDS.usertest}', // list of receivers
-    subject: '${property.source}', // Subject line
-    html: '<p>${property.url}</p>'// plain text body
+    from: CREDS.username, // sender address
+    to: CREDS.usertest, // list of receivers
+    subject: 'Vibbo', // Subject line
+    text: "Url: ${property.url}"
+    //html: "<p>Url: {{property.url}}</p>"// plain text body
   };
 
   transporter.sendMail(mailOptions, function (err, info) {
@@ -318,6 +315,9 @@ function notify_mail(ref) {
   });
 
 }
+
+
+
 
 //process.exit(0)
 
