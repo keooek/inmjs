@@ -282,14 +282,17 @@ function notify_mail(ref) {
 	}
 	
   // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
-  Vibbo.findOne({ 'reference': ref }, 'contact source url dateClawled', function (err, property) {
-  if (err) return handleError(err);
+ // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
+  Vibbo.findOne({ reference: ref }, function (err, property) {
+  if (err) throw err;
+  console.log(property);
+  console.log(property.url);
   // Prints "Space Ghost is a talk show host".
   //console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
-  });
+  
   //console.log(ref, property.url, property.dateCrawled, property.source, property.contact);
   console.log(CREDS.username);
-  console.log(property.url);
+  
 
   var transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -303,8 +306,8 @@ function notify_mail(ref) {
     from: CREDS.username, // sender address
     to: CREDS.usertest, // list of receivers
     subject: 'Vibbo', // Subject line
-    text: "Url: ${property.url}"
-    //html: "<p>Url: {{property.url}}</p>"// plain text body
+    //text: 'Url: {{property.url}}'
+    html: '<p>Url: ' + property.url +  '</p>'// plain text body
   };
 
   transporter.sendMail(mailOptions, function (err, info) {
@@ -313,6 +316,8 @@ function notify_mail(ref) {
     else
       console.log(info);
   });
+
+});
 
 }
 
