@@ -129,7 +129,7 @@ async function start_index(urlpar) {
   // A veces aparecen id no numericos que no son necesarios
   removeMatching(ids,/^[^0-9]/);
   console.log(ids);
-  ids='115290798  '
+  //const ids='115290798  '
 
   //ids.forEach(ref => {
     //for (var ref of ids ) {
@@ -194,6 +194,7 @@ async function start_index(urlpar) {
 
 
 async function start_property(ref, href) {
+  
   let browser;
 
   if (process.arch === 'arm')   {
