@@ -9,9 +9,30 @@ const mongoose = require('mongoose');
 const Vibbo = require('./models/vibbo');
 const CREDS = require('./creds');
 const nodemailer = require('nodemailer');
+var cron = require('cron');
+
 
 //console.log(process.arch)
 //process.exit(0)
+
+var job = new cron.CronJob({
+ // cronTime: '00 51 19 * * 1-7', 
+ cronTime: '* * * * *', 
+  onTick: function() {
+  
+    const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
+    start_index(url.parse(testUrl,true));
+
+  },
+  onComplete: function () {
+    /* This function is executed when the job stops */
+  },
+  start: true, /* Start the job right now */
+  timeZone: 'Europe/Madrid' /* Time zone of this job. */
+});
+
+job.start();
+
 
 // This is where we'll put the code to get around the tests.
 const preparePageForTests = async (page) => {
@@ -113,26 +134,24 @@ async function start_index(urlpar) {
   
   //console.log('Begin');
   
-//  await page.waitForSelector('p.subject.subjectTop > a');
-//
-//  const ids = await page.evaluate(() => {
-//    const links = Array.from(document.querySelectorAll('p.subject.subjectTop > a'))
-//    return links.map(link => link.href).slice(0, 100)
-//  })
-//  console.log(ids);
+  //await page.waitForSelector('p.subject.subjectTop > a');
+
+  //const ids = await page.evaluate(() => {
+  //  const links = Array.from(document.querySelectorAll('p.subject.subjectTop > a'))
+  //  return links.map(link => link.href).slice(0, 100)
+  //})
+ // console.log(ids);
 
   //Espera la carga
   await page.waitForSelector('div.list_ads_table > div');
 
-  //const ids = await page.evaluate(() => {
-  //  const links = Array.from(document.querySelectorAll('div.list_ads_table > div'))
-  //  return links.map(link => link.id).slice(0, 100)
-  //})
+  const ids = await page.evaluate(() => {
+    const links = Array.from(document.querySelectorAll('div.list_ads_table > div'))
+    return links.map(link => link.id).slice(0, 100)
+  })
   // A veces aparecen id no numericos que no son necesarios
-  //removeMatching(ids,/^[^0-9]/);
-  //const ids = ["115290798", "115456598"];
-  //const ids = ["115290798"];
-  const ids = ["115467143"];
+  removeMatching(ids,/^[^0-9]/);
+  //const ids = ["115467143"];
   console.log(ids);
 
 
@@ -267,11 +286,6 @@ function removeMatching(originalArray, regex) {
 
 
 
-//process.exit(0);
-
-const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
-start_index(url.parse(testUrl,true));
-
 function notify_mail(ref) {
 
   const DB_URL = 'mongodb://localhost/propertyManagement';
@@ -305,8 +319,7 @@ function notify_mail(ref) {
    const mailOptions = {
     from: CREDS.username, // sender address
     to: CREDS.usertest, // list of receivers
-    subject: 'Vibbo', // Subject line
-    //text: 'Url: {{property.url}}'
+    subject: property.source, // Subject line
     html: '<p>Url: ' + property.url +  '</p>'// plain text body
   };
 
