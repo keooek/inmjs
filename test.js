@@ -9,7 +9,7 @@ const fse = require('fs-extra');
 const path = require('path');
 const mongoose = require('mongoose');
 const Vibbo = require('./models/vibbo');
-//const CREDS = require('./creds');
+const CREDS = require('./creds');
 const nodemailer = require('nodemailer');
 var cron = require('cron');
 
@@ -195,7 +195,7 @@ async function start_index(urlpar) {
     console.log('Source: ' + item.source)
     if (!item.source) {
       console.log('Referencia en bd ' + item.reference + ' con href ' + item.url)
-      var waitTill = new Date(new Date().getTime() + 10 * 1000);
+      var waitTill = new Date(new Date().getTime() + 15 * 1000);
       while (waitTill > new Date()) {};
       console.log('Opening: ' + item.url)
       await start_property(page, browser, item.reference, item.url);
@@ -280,7 +280,8 @@ async function start_property(page, browser, ref, href) {
     });
 
     console.log('Saved: ' + ref + ' ' + seller)
-    //await notify_mail(ref);
+    await notify_mail(ref);
+
   } else {
     let seller = 'Inmobiliaria'
     await upsertProperty({
@@ -330,18 +331,14 @@ async function notify_mail(ref) {
 
   // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
   // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
-  Vibbo.findOne({
-    reference: ref
-  }, function (err, property) {
-    if (err) throw err;
-    console.log(property);
-    console.log(property.url);
+    const property = await findprop(ref);
     // Prints "Space Ghost is a talk show host".
     //console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
 
     //console.log(ref, property.url, property.dateCrawled, property.source, property.contact);
     console.log(CREDS.username);
 
+    if (property.contact !== 'Inmobiliaria') {
 
     var transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -350,13 +347,14 @@ async function notify_mail(ref) {
         pass: CREDS.password
       }
     });
-
+    
     const mailOptions = {
       from: CREDS.username, // sender address
       to: CREDS.usertest, // list of receivers
-      subject: property.source, // Subject line
-      html: '<p>Url: ' + property.url + '</p>' // plain text body
+      subject: property.source + ' ' + property.contact + ' ' + property.reference, // Subject line
+      html: '<p>Url: ' + property.url + ' ' + property.contact + '</p>' // plain text body
     };
+    
 
     transporter.sendMail(mailOptions, function (err, info) {
       if (err)
@@ -365,7 +363,7 @@ async function notify_mail(ref) {
         console.log(info);
     });
 
-  });
+  }
 
 }
 
