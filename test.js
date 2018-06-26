@@ -12,21 +12,29 @@ const Vibbo = require('./models/vibbo');
 const CREDS = require('./creds');
 const nodemailer = require('nodemailer');
 var cron = require('cron');
+const log4js = require('log4js');
+
+log4js.configure({
+  appenders: { vibbo: { type: 'file', filename: 'log/vibbo.log' } },
+  categories: { default: { appenders: ['vibbo'], level: 'info' } }
+});
+ 
+const logger = log4js.getLogger('vibbo');
+
 
 //const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
 //start_index(url.parse(testUrl, true));
 
-
-//console.log(process.arch)
+//logger.info(process.arch)
 //process.exit(0)
 const schedule = '00 00,30 8-23 * 1-5'
-console.log('Cron schedule: ' + schedule)
+logger.info('Cron schedule: ' + schedule);
 
 var job = new cron.CronJob({
  cronTime: schedule, 
  //cronTime: '* * * * *', 
   onTick: function() {
-    //console.log('h')
+    //logger.info('h')
     const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
     start_index(url.parse(testUrl,true));
   },
@@ -144,7 +152,7 @@ async function start_index(urlpar) {
   //   await fse.outputFile(filePath, await response.buffer());
   // });
 
-  console.log(urlpar.href);
+  logger.info(urlpar.href);
   await page.goto(urlpar.href);
   await page.waitFor(6 * 1000);
   //https://fettblog.eu/scraping-with-puppeteer/
@@ -162,7 +170,7 @@ async function start_index(urlpar) {
   // A veces aparecen id no numericos que no son necesarios
   removeMatching(ids, /^[^0-9]/);
   //const ids = ["115467143"];
-  console.log(ids);
+  logger.info(ids);
 
 
   //ids.forEach(ref => {
@@ -172,14 +180,14 @@ async function start_index(urlpar) {
     const HREF_SELECTOR = '#\\3REFER > div > div.front > div.add-info > p.subject.subjectTop > a ';
     const refspace = ref.slice(0, 1) + ' ' + ref.slice(1, ref.length)
     let hrefSelector = HREF_SELECTOR.replace("REFER", refspace);
-    console.log('Selector: ' + hrefSelector);
+    logger.info('Selector: ' + hrefSelector);
     //Aunque el id sea 115436123, el selector lo pone como \31 15436123, la \\ es por caracter de escape
     //let hrefSelector = '#\\31 15436123 > div > div.front > div.add-info > p.subject.subjectTop > a'
     let href = await page.evaluate((sel) => {
       return document.querySelector(sel).getAttribute('href');
     }, hrefSelector);
 
-    console.log(ref + ' tiene href https:' + href);
+    logger.info(ref + ' tiene href https:' + href);
 
     await upsertProperty({
       reference: ref,
@@ -195,15 +203,15 @@ async function start_index(urlpar) {
   for (var i = 0; i < ids.length; i++) {
     //const ref = ids[i];
     const item = await findprop(ids[i]);
-    console.log('Source: ' + item.source)
+    logger.info('Source: ' + item.source)
     if (!item.source) {
-      console.log('Referencia en bd ' + item.reference + ' con href ' + item.url)
+      logger.info('Referencia en bd ' + item.reference + ' con href ' + item.url)
       var waitTill = new Date(new Date().getTime() + 15 * 1000);
       while (waitTill > new Date()) {};
-      console.log('Opening: ' + item.url)
+      logger.info('Opening: ' + item.url)
       await start_property(page, browser, item.reference, item.url);
     } else {
-      console.log('Pagina ya estaba parseada y los datos guardados los datos en bd' + item.reference);
+      logger.info('Pagina ya estaba parseada y los datos guardados los datos en bd' + item.reference);
     }
   }
 
@@ -226,7 +234,7 @@ async function findprop(ref) {
     const item = await Vibbo.findOne({
       reference: ref
     });
-    //console.log(item);
+    //logger.info(item);
 
     return (item);
   } catch (err) {
@@ -243,11 +251,11 @@ async function findprop(ref) {
 async function start_property(page, browser, ref, href) {
   /*
     page.on('error', err=> {
-      console.log('error happen at the page: ', err);
+      logger.info('error happen at the page: ', err);
     });
 
     page.on('pageerror', pageerr=> {
-      console.log('pageerror occurred: ', pageerr);
+      logger.info('pageerror occurred: ', pageerr);
     })
   */
   await page.goto(href).catch(e => console.error('Catched: ' + e));
@@ -255,17 +263,17 @@ async function start_property(page, browser, ref, href) {
 
   //Espera la carga
   const alwaysSelector = '#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.titlePriceBox > h1';
-  if (await page.$(alwaysSelector) !== null) console.log('alwaysSelector found');
-  else console.log('alwaysSelector not found');
+  if (await page.$(alwaysSelector) !== null) logger.info('alwaysSelector found');
+  else logger.info('alwaysSelector not found');
 
   await page.waitForSelector(alwaysSelector);
 
   const sellerSelector = '#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.sellerBox > div.sellerBox__user > div.sellerBox__info > div.sellerBox__info__name';
   if (await page.$(sellerSelector) !== null) {
-    console.log('sellerSelector found');
+    logger.info('sellerSelector found');
 
     //const title = await page.title()
-    //console.log(title)
+    //logger.info(title)
 
     //process.exit(0)
 
@@ -282,7 +290,7 @@ async function start_property(page, browser, ref, href) {
       dateCrawled: new Date()
     });
 
-    console.log('Saved: ' + ref + ' ' + seller)
+    logger.info('Saved: ' + ref + ' ' + seller)
     await notify_mail(ref);
 
   } else {
@@ -294,7 +302,7 @@ async function start_property(page, browser, ref, href) {
       contact: seller,
       dateCrawled: new Date()
     });
-    console.log('Saved: ' + ref + ' ' + seller)
+    logger.info('Saved: ' + ref + ' ' + seller)
   }
 
 }
@@ -336,10 +344,10 @@ async function notify_mail(ref) {
   // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
     const property = await findprop(ref);
     // Prints "Space Ghost is a talk show host".
-    //console.log('%s %s is a %s.', ref, property.url, property.dateCrawled);
+    //logger.info('%s %s is a %s.', ref, property.url, property.dateCrawled);
 
-    //console.log(ref, property.url, property.dateCrawled, property.source, property.contact);
-    console.log(CREDS.username);
+    //logger.info(ref, property.url, property.dateCrawled, property.source, property.contact);
+    logger.info(CREDS.username);
 
     if (property.contact !== 'Inmobiliaria') {
 
@@ -361,9 +369,9 @@ async function notify_mail(ref) {
 
     transporter.sendMail(mailOptions, function (err, info) {
       if (err)
-        console.log(err)
+        logger.info(err)
       else
-        console.log(info);
+        logger.info(info);
     });
 
   }
