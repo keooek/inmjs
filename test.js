@@ -7,7 +7,7 @@ const fse = require('fs-extra');
 const path = require('path');
 const mongoose = require('mongoose');
 const Vibbo = require('./models/vibbo');
-const CREDS = require('./creds');
+//const CREDS = require('./creds');
 const nodemailer = require('nodemailer');
 var cron = require('cron');
 
@@ -22,7 +22,6 @@ var job = new cron.CronJob({
     console.log('h')
     const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
     start_index(url.parse(testUrl,true));
-
   },
   onComplete: function () {
     // This function is executed when the job stops 
@@ -30,9 +29,17 @@ var job = new cron.CronJob({
   start: true, // Start the job right now 
   timeZone: 'Europe/Madrid' // Time zone of this job. 
 });
-
 job.start();
 */
+
+const DB_URL = 'mongodb://localhost/propertyManagement';
+
+if (mongoose.connection.readyState == 0) {
+  //mongoose.connect(DB_URL);
+  process.arch === 'arm' ? mongoose.connect(DB_URL, {
+    useMongoClient: true,
+  }) : mongoose.connect(DB_URL)
+}
 
 const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
 start_index(url.parse(testUrl, true));
@@ -65,8 +72,10 @@ const preparePageForTests = async (page) => {
     const originalQuery = window.navigator.permissions.query;
     return window.navigator.permissions.query = (parameters) => (
       parameters.name === 'notifications' ?
-        Promise.resolve({ state: Notification.permission }) :
-        originalQuery(parameters)
+      Promise.resolve({
+        state: Notification.permission
+      }) :
+      originalQuery(parameters)
     );
   });
 
@@ -127,8 +136,9 @@ async function start_index(urlpar) {
 
   console.log(urlpar.href);
   await page.goto(urlpar.href);
+  await page.waitFor(4 * 1000);
   //https://fettblog.eu/scraping-with-puppeteer/
-  //await page.goto(testUrl, {
+  //await page.goto(urlpar.href, {
   //  waitUntil: 'networkidle2'
   //});
 
@@ -149,12 +159,6 @@ async function start_index(urlpar) {
   //for (var ref of ids ) {
   for (var i = 0; i < ids.length; i++) {
     const ref = ids[i];
-    const DB_URL = 'mongodb://localhost/propertyManagement';
-
-    if (mongoose.connection.readyState == 0) {
-      process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, }) : mongoose.connect(DB_URL)
-    }
-
     const HREF_SELECTOR = '#\\3REFER > div > div.front > div.add-info > p.subject.subjectTop > a ';
     const refspace = ref.slice(0, 1) + ' ' + ref.slice(1, ref.length)
     let hrefSelector = HREF_SELECTOR.replace("REFER", refspace);
@@ -167,19 +171,17 @@ async function start_index(urlpar) {
 
     console.log(ref + ' tiene href https:' + href);
 
+    const item = await findprop(ref);
 
-    const foundUser = Vibbo.findOne({ reference: ref }, (err, userObj) => {
-      if (err) {
-        console.log('Error: ' + err)
-      } else if (userObj) {
-        console.log('Referencia en bd ' + userObj.reference + ' con fecha ' + userObj.dateCrawled)
+    if (item) {
+        console.log('Referencia en bd ' + item.reference + ' con fecha ' + item.dateCrawled)
       } else {
         console.log('Referencia no encontrada en bd ' + ref);
 
         var waitTill = new Date(new Date().getTime() + 5 * 1000);
-        while (waitTill > new Date()) { };
+        while (waitTill > new Date()) {};
 
-        start_property(page, browser, ref, 'https:' + href);
+        //start_property(page, browser, ref, 'https:' + href);
         //upsertProperty({
         //  reference: ref,
         //  url: 'http:' + href,
@@ -187,7 +189,7 @@ async function start_index(urlpar) {
         // });
 
       }
-    });
+
 
   }
 
@@ -198,6 +200,17 @@ async function start_index(urlpar) {
   // Save a screenshot of the results.
   //await page.screenshot({path: 'headless-final-results.png'});
 
+}
+
+async function findprop (ref) {
+  try {
+     const item = await Vibbo.findOne({ reference: ref });
+     //console.log(item);
+
+     return(item);
+  }  catch(err) {
+    console.error('NO ENCONTRADO');
+  }
 }
 
 //publico
@@ -244,16 +257,15 @@ async function start_property(page, browser, ref, href) {
 
 function upsertProperty(propertyObj) {
 
-  const DB_URL = 'mongodb://localhost/propertyManagement';
-
-  if (mongoose.connection.readyState == 0) {
-    //mongoose.connect(DB_URL);
-    process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, }) : mongoose.connect(DB_URL)
-  }
-
   // if this email exists, update the entry, don't insert
-  const conditions = { reference: propertyObj.reference };
-  const options = { upsert: true, new: true, setDefaultsOnInsert: true };
+  const conditions = {
+    reference: propertyObj.reference
+  };
+  const options = {
+    upsert: true,
+    new: true,
+    setDefaultsOnInsert: true
+  };
 
   Vibbo.findOneAndUpdate(conditions, propertyObj, options, (err, result) => {
     if (err) throw err;
@@ -275,16 +287,11 @@ function removeMatching(originalArray, regex) {
 
 function notify_mail(ref) {
 
-  const DB_URL = 'mongodb://localhost/propertyManagement';
-
-  if (mongoose.connection.readyState == 0) {
-    //mongoose.connect(DB_URL);
-    process.arch === 'arm' ? mongoose.connect(DB_URL, { useMongoClient: true, }) : mongoose.connect(DB_URL)
-  }
-
   // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
   // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
-  Vibbo.findOne({ reference: ref }, function (err, property) {
+  Vibbo.findOne({
+    reference: ref
+  }, function (err, property) {
     if (err) throw err;
     console.log(property);
     console.log(property.url);
@@ -307,7 +314,7 @@ function notify_mail(ref) {
       from: CREDS.username, // sender address
       to: CREDS.usertest, // list of receivers
       subject: property.source, // Subject line
-      html: '<p>Url: ' + property.url + '</p>'// plain text body
+      html: '<p>Url: ' + property.url + '</p>' // plain text body
     };
 
     transporter.sendMail(mailOptions, function (err, info) {
@@ -330,5 +337,4 @@ function notify_mail(ref) {
 //scrap login extract info in subpages + mongoose
 
 //https://www.aymen-loukil.com/en/blog-en/google-puppeteer-tutorial-with-examples/
-	//varios, example hrefs, download html file clean
-
+//varios, example hrefs, download html file clean
