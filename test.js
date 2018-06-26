@@ -1,7 +1,9 @@
 //https://github.com/intoli/intoli-article-materials/tree/master/articles/not-possible-to-block-chrome-headless
 // We'll use Puppeteer is our browser automation framework.
 const puppeteer = require('puppeteer');
-const { URL } = require('url');
+const {
+  URL
+} = require('url');
 const url = require('url');
 const fse = require('fs-extra');
 const path = require('path');
@@ -112,6 +114,11 @@ async function start_index(urlpar) {
       headless: true,
       executablePath: '/usr/bin/chromium-browser',
     });
+  } else if (process.platform === "win32") {
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox ', '--proxy-server="socks5://localhost:1080 '],
+      headless: false,
+    });
   } else {
     browser = await puppeteer.launch({
       args: ['--no-sandbox'],
@@ -136,7 +143,7 @@ async function start_index(urlpar) {
 
   console.log(urlpar.href);
   await page.goto(urlpar.href);
-  await page.waitFor(4 * 1000);
+  await page.waitFor(6 * 1000);
   //https://fettblog.eu/scraping-with-puppeteer/
   //await page.goto(urlpar.href, {
   //  waitUntil: 'networkidle2'
@@ -171,27 +178,36 @@ async function start_index(urlpar) {
 
     console.log(ref + ' tiene href https:' + href);
 
-    const item = await findprop(ref);
-
-    if (item) {
-        console.log('Referencia en bd ' + item.reference + ' con fecha ' + item.dateCrawled)
-      } else {
-        console.log('Referencia no encontrada en bd ' + ref);
-
-        var waitTill = new Date(new Date().getTime() + 5 * 1000);
-        while (waitTill > new Date()) {};
-
-        //start_property(page, browser, ref, 'https:' + href);
-        //upsertProperty({
-        //  reference: ref,
-        //  url: 'http:' + href,
-        //  dateCrawled: new Date()
-        // });
-
-      }
-
+    await upsertProperty({
+      reference: ref,
+      url: 'https:' + href,
+      //  source: 'Vibbo',
+      //  contact: seller,
+      //  dateCrawled: new Date()
+    });
 
   }
+
+  //Lo creamos en otro loop ya que sino se cierra la pagina del indice
+  for (var i = 0; i < ids.length; i++) {
+    //const ref = ids[i];
+    const item = await findprop(ids[i]);
+    console.log('Source: ' + item.source)
+    if (!item.source) {
+      console.log('Referencia en bd ' + item.reference + ' con href ' + item.url)
+      var waitTill = new Date(new Date().getTime() + 10 * 1000);
+      while (waitTill > new Date()) {};
+      console.log('Opening: ' + item.url)
+      await start_property(page, browser, item.reference, item.url);
+    } else {
+      console.log('Pagina ya estaba parseada y los datos guardados los datos en bd' + item.reference);
+    }
+  }
+
+
+
+  // Clean up.
+  // await browser.close()
 
   //setTimeout(async () => {
   //  await browser.close();
@@ -202,13 +218,15 @@ async function start_index(urlpar) {
 
 }
 
-async function findprop (ref) {
+async function findprop(ref) {
   try {
-     const item = await Vibbo.findOne({ reference: ref });
-     //console.log(item);
+    const item = await Vibbo.findOne({
+      reference: ref
+    });
+    //console.log(item);
 
-     return(item);
-  }  catch(err) {
+    return (item);
+  } catch (err) {
     console.error('NO ENCONTRADO');
   }
 }
@@ -220,25 +238,40 @@ async function findprop (ref) {
 
 
 async function start_property(page, browser, ref, href) {
+  /*
+    page.on('error', err=> {
+      console.log('error happen at the page: ', err);
+    });
 
-  await page.goto(href);
+    page.on('pageerror', pageerr=> {
+      console.log('pageerror occurred: ', pageerr);
+    })
+  */
+  await page.goto(href).catch(e => console.error('Catched: ' + e));
+  await page.waitFor(6 * 1000);
 
   //Espera la carga
-  await page.waitForSelector('#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.titlePriceBox > h1');
+  const alwaysSelector = '#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.titlePriceBox > h1';
+  if (await page.$(alwaysSelector) !== null) console.log('alwaysSelector found');
+  else console.log('alwaysSelector not found');
+
+  await page.waitForSelector(alwaysSelector);
 
   const sellerSelector = '#main > div.adview_mainInfo > div > div.adview_mainInfo__infoCol > div > div.sellerBox > div.sellerBox__user > div.sellerBox__info > div.sellerBox__info__name';
-  const title = await page.title()
-  console.log(title)
+  if (await page.$(sellerSelector) !== null) {
+    console.log('sellerSelector found');
 
-  let seller = await page.evaluate((sel) => {
-    let element = document.querySelector(sel);
-    return element ? element.innerHTML : null;
-  }, sellerSelector);
+    //const title = await page.title()
+    //console.log(title)
 
-  console.log(seller);
+    //process.exit(0)
 
-  if (seller) {
-    upsertProperty({
+    let seller = await page.evaluate((sel) => {
+      let element = document.querySelector(sel);
+      return element ? element.innerHTML : null;
+    }, sellerSelector);
+
+    await upsertProperty({
       reference: ref,
       url: href,
       source: 'Vibbo',
@@ -246,16 +279,24 @@ async function start_property(page, browser, ref, href) {
       dateCrawled: new Date()
     });
 
-    console.log('Saved: ' + ref + ' Raquel')
-    notify_mail(ref);
+    console.log('Saved: ' + ref + ' ' + seller)
+    //await notify_mail(ref);
+  } else {
+    let seller = 'Inmobiliaria'
+    await upsertProperty({
+      reference: ref,
+      url: href,
+      source: 'Vibbo',
+      contact: seller,
+      dateCrawled: new Date()
+    });
+    console.log('Saved: ' + ref + ' ' + seller)
   }
-
-  // Clean up.
-  await browser.close()
 
 }
 
-function upsertProperty(propertyObj) {
+
+async function upsertProperty(propertyObj) {
 
   // if this email exists, update the entry, don't insert
   const conditions = {
@@ -285,7 +326,7 @@ function removeMatching(originalArray, regex) {
 
 
 
-function notify_mail(ref) {
+async function notify_mail(ref) {
 
   // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
   // Vibbo.findOne({ 'reference': ref }, {contact:true, source:true, url:true, dateClawled:true}, function (err, property) {
