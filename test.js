@@ -13,15 +13,20 @@ const CREDS = require('./creds');
 const nodemailer = require('nodemailer');
 var cron = require('cron');
 
+//const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
+//start_index(url.parse(testUrl, true));
+
 
 //console.log(process.arch)
 //process.exit(0)
-/*
+const schedule = '00 00,30 8-23 * 1-5'
+console.log('Cron schedule: ' + schedule)
+
 var job = new cron.CronJob({
- // cronTime: '00 51 19 * * 1-7', 
- cronTime: '* * * * *', 
+ cronTime: schedule, 
+ //cronTime: '* * * * *', 
   onTick: function() {
-    console.log('h')
+    //console.log('h')
     const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
     start_index(url.parse(testUrl,true));
   },
@@ -32,7 +37,7 @@ var job = new cron.CronJob({
   timeZone: 'Europe/Madrid' // Time zone of this job. 
 });
 job.start();
-*/
+
 
 const DB_URL = 'mongodb://localhost/propertyManagement';
 
@@ -43,8 +48,6 @@ if (mongoose.connection.readyState == 0) {
   }) : mongoose.connect(DB_URL)
 }
 
-const testUrl = 'https://www.vibbo.com/venta-de-solo-pisos-bilbao/?ca=48_s&a=19&m=48020&itype=6&fPos=148&fOn=sb_location';
-start_index(url.parse(testUrl, true));
 
 // This is where we'll put the code to get around the tests.
 const preparePageForTests = async (page) => {
