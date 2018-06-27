@@ -27,7 +27,7 @@ const logger = log4js.getLogger('vibbo');
 
 //logger.info(process.arch)
 //process.exit(0)
-const schedule = '00 00,30 8-23 * 1-5'
+const schedule = '00 00,06 8-23 * * 1-5'
 logger.info('Cron schedule: ' + schedule);
 
 var job = new cron.CronJob({
