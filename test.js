@@ -218,7 +218,7 @@ async function start_index(urlpar) {
 
 
   // Clean up.
-  // await browser.close()
+  await browser.close()
 
   //setTimeout(async () => {
   //  await browser.close();
